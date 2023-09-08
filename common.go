@@ -1,7 +1,11 @@
 package qgnet
 
 import (
+	"net/http"
+	"net/url"
 	"time"
+
+	"github.com/guonaihong/gout/dataflow"
 )
 
 // 动态共享代理（按时）中国
@@ -12,6 +16,27 @@ func NewIpManagerByDyChinaIpByTime(username, password string, ipsize int) (*IpMa
 // 动态共享代理（按时）世界
 func NewIpManagerByDyWorldIpByTime(username, password string, ipsize int) (*IpManager, error) {
 	return NewIpManager(ipsize, NewDyWorldIpByTimeClient(username, password))
+}
+
+// =====================================================================================
+// 配置代理
+
+func SetProxyToGout(flow *dataflow.DataFlow, ipp IpProxy, prof, user, pass string) *dataflow.DataFlow {
+	if prof == "socks5" {
+		return flow.SetSOCKS5(ipp.Proxy(prof, user, pass))
+	}
+	return flow.SetProxy(ipp.Proxy(prof, user, pass))
+}
+
+func SetProxyToHttp(cli *http.Client, ipp IpProxy, prof, user, pass string) error {
+	pxy, err := url.Parse(ipp.Proxy(prof, user, pass))
+	if err != nil {
+		return err
+	}
+	cli.Transport = &http.Transport{
+		Proxy: http.ProxyURL(pxy),
+	}
+	return nil
 }
 
 //=====================================================================================
@@ -25,8 +50,10 @@ type IpHandler interface {
 }
 
 type IpProxy interface {
-	ExpAt() time.Time               // 代理IP有效期
-	Serve() string                  // 代理IP的服务
-	Proxy(user, pass string) string // 代理IP的连接
-	String() string                 // 代理IP的信息
+	ExpAt() time.Time // 代理IP有效期
+	Serve() string    // 代理IP的服务
+	String() string   // 代理IP的信息
+
+	Proxy(prof, user, pass string) string // 代理IP的连接
+
 }

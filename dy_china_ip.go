@@ -43,14 +43,12 @@ func (cc *DyChinaIpByTimeClient) Gets(size int) ([]IpProxy, error) {
 
 	ips := make([]IpProxy, len(rst.Data))
 	for i := 0; i < len(rst.Data); i++ {
-		ips[i] = &DyChinaIpProxy{
-			DyChinaIpProxyRO: rst.Data[i],
-		}
+		ips[i] = &rst.Data[i]
 	}
 	return ips, nil
 }
 
-// 如果么有可用通道，q = true, 使用查询的方式
+// 如果么有可用通道，q = true:复用可用通道
 func (cc *DyChinaIpByTimeClient) Get1(q bool) (IpProxy, error) {
 	pco := cc.Params
 	pco.Num = 1
@@ -72,9 +70,7 @@ func (cc *DyChinaIpByTimeClient) Get1(q bool) (IpProxy, error) {
 		return nil, ErrorOf(ErrCodeStatus, "获取代理失败: 无可用通道")
 	}
 
-	return &DyChinaIpProxy{
-		DyChinaIpProxyRO: rst.Data[0],
-	}, nil
+	return &rst.Data[0], nil
 }
 
 func (cc *DyChinaIpByTimeClient) Free(info IpProxy) error {
@@ -89,34 +85,30 @@ func (cc *DyChinaIpByTimeClient) SetToken(token string) {
 	cc.Params.Key = token
 }
 
-//====================================================================================
+// ====================================================================================
+var _ IpProxy = (*DyChinaIpProxyRO)(nil)
 
-type DyChinaIpProxy struct {
-	DyChinaIpProxyRO
-	User string
-	Pass string
-}
-
-var _ IpProxy = (*DyChinaIpProxy)(nil)
-
-func (cc *DyChinaIpProxy) String() string {
+func (cc *DyChinaIpProxyRO) String() string {
 	return fmt.Sprintf("server: %s, area: %s, isp: %s, deadline: %s", cc.Server, cc.Area, cc.Isp, cc.Deadline)
 }
 
-func (cc *DyChinaIpProxy) Proxy(user, pass string) string {
-	if user == "" {
-		return fmt.Sprintf("http://%s", cc.Server)
-	} else if cc.Pass == "" {
-		return fmt.Sprintf("http://%s@%s", user, cc.Server)
+func (cc *DyChinaIpProxyRO) Proxy(prof, user, pass string) string {
+	if prof == "" {
+		prof = "http"
 	}
-	return fmt.Sprintf("http://%s:%s@%s", user, pass, cc.Server)
+	if user == "" {
+		return fmt.Sprintf("%s://%s", prof, cc.Server)
+	} else if pass == "" {
+		return fmt.Sprintf("%s://%s@%s", prof, user, cc.Server)
+	}
+	return fmt.Sprintf("%s://%s:%s@%s", prof, user, pass, cc.Server)
 }
 
-func (cc *DyChinaIpProxy) ExpAt() time.Time {
+func (cc *DyChinaIpProxyRO) ExpAt() time.Time {
 	return cc.Deadlin0
 }
 
-func (cc *DyChinaIpProxy) Serve() string {
+func (cc *DyChinaIpProxyRO) Serve() string {
 	return cc.Server
 }
 

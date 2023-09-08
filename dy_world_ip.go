@@ -42,9 +42,7 @@ func (cc *DyWorldIpByTimeClient) Gets(size int) ([]IpProxy, error) {
 
 	ips := make([]IpProxy, len(rst.Data))
 	for i := 0; i < len(rst.Data); i++ {
-		ips[i] = &DyWorldIpProxy{
-			DyWorldIpProxyRO: rst.Data[i],
-		}
+		ips[i] = &rst.Data[i]
 	}
 	return ips, nil
 }
@@ -71,9 +69,7 @@ func (cc *DyWorldIpByTimeClient) Get1(q bool) (IpProxy, error) {
 		return nil, ErrorOf(ErrCodeStatus, "获取代理失败: 无可用通道")
 	}
 
-	return &DyWorldIpProxy{
-		DyWorldIpProxyRO: rst.Data[0],
-	}, nil
+	return &rst.Data[0], nil
 }
 
 func (cc *DyWorldIpByTimeClient) Free(info IpProxy) error {
@@ -88,34 +84,30 @@ func (cc *DyWorldIpByTimeClient) SetToken(token string) {
 	cc.Params.Key = token
 }
 
-//====================================================================================
+// ====================================================================================
+var _ IpProxy = (*DyWorldIpProxyRO)(nil)
 
-type DyWorldIpProxy struct {
-	DyWorldIpProxyRO
-	User string
-	Pass string
-}
-
-var _ IpProxy = (*DyWorldIpProxy)(nil)
-
-func (cc *DyWorldIpProxy) String() string {
+func (cc *DyWorldIpProxyRO) String() string {
 	return fmt.Sprintf("server: %s, area: %s, isp: %s, deadline: %s", cc.Server, cc.Area, cc.Isp, cc.Deadline)
 }
 
-func (cc *DyWorldIpProxy) Proxy(user, pass string) string {
-	if user == "" {
-		return fmt.Sprintf("http://%s", cc.Server)
-	} else if cc.Pass == "" {
-		return fmt.Sprintf("http://%s@%s", user, cc.Server)
+func (cc *DyWorldIpProxyRO) Proxy(prof, user, pass string) string {
+	if prof == "" {
+		prof = "http"
 	}
-	return fmt.Sprintf("http://%s:%s@%s", user, pass, cc.Server)
+	if user == "" {
+		return fmt.Sprintf("%s://%s", prof, cc.Server)
+	} else if pass == "" {
+		return fmt.Sprintf("%s://%s@%s", prof, user, cc.Server)
+	}
+	return fmt.Sprintf("%s://%s:%s@%s", prof, user, pass, cc.Server)
 }
 
-func (cc *DyWorldIpProxy) ExpAt() time.Time {
+func (cc *DyWorldIpProxyRO) ExpAt() time.Time {
 	return cc.Deadlin0
 }
 
-func (cc *DyWorldIpProxy) Serve() string {
+func (cc *DyWorldIpProxyRO) Serve() string {
 	return cc.Server
 }
 
